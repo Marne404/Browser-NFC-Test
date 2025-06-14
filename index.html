@@ -1,0 +1,149 @@
+<!DOCTYPE html><html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NFC Test</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg-primary: #121212;
+    --bg-secondary: #1e1e1e;
+    --primary: #0a84ff;
+    --primary-hover: #5fa9ff;
+    --success: #30d158;
+    --error: #ff375f;
+    --text-primary: #ffffff;
+    --text-secondary: #a0a0a0;
+    --border-radius: 16px;
+    --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    --success-gradient: linear-gradient(135deg, #30d158 0%, #34c759 100%);
+    --error-gradient: linear-gradient(135deg, #ff375f 0%, #ff2d55 100%);
+  }{ margin: 0; padding: 0; box-sizing: border-box; }
+
+
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; display: flex; flex-direction: column; padding: 0; line-height: 1.6; opacity: 0; transition: opacity 0.5s ease; overflow: hidden; }
+
+/* Header mit Info-Button */ header { position: absolute; top: 10px; right: 10px; z-index: 10; } #info-button { background: rgba(255,255,255,0.1); border: none; color: var(--text-primary); font-size: 24px; padding: 10px; border-radius: 50%; cursor: pointer; transition: background 0.2s ease, transform 0.2s ease; } #info-button:hover { background: rgba(10,132,255,0.2); transform: scale(1.1); }
+
+/* Vollbild Status-Fenster */ #status { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--bg-secondary); display: flex; justify-content: center; align-items: center; transition: background 0.5s ease; } .status-content { display: flex; flex-direction: column; align-items: center; padding: 20px; border-radius: var(--border-radius); background: rgba(37,37,37,0.8); box-shadow: var(--shadow); animation: fadeInUp 0.8s ease-out; } .status-icon { width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; font-size: 36px; transition: transform 0.3s ease; } .loading .status-icon { background: rgba(10, 132, 255, 0.2); color: var(--primary); animation: pulse 2s infinite; } .success .status-icon { background: var(--success-gradient); color: white; box-shadow: 0 5px 20px rgba(48, 209, 88, 0.3); animation: popIn 0.5s ease-out; } .error .status-icon { background: var(--error-gradient); color: white; box-shadow: 0 5px 20px rgba(255, 55, 95, 0.3); animation: shake 0.5s ease-out; } .status-text { font-size: 20px; font-weight: 600; margin-bottom: 10px; text-align: center; transition: color 0.3s ease; } .status-details { font-size: 14px; color: var(--text-secondary); text-align: center; max-width: 80vw; animation: fadeIn 0.5s ease-out; }
+
+/* Overlay für Anleitung */ #instruction-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(18, 18, 18, 0.95); display: flex; justify-content: center; align-items: center; padding: 20px; z-index: 1000; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; } #instruction-overlay.active { opacity: 1; visibility: visible; } .overlay-content { position: relative; max-width: 500px; width: 100%; max-height: 90%; overflow-y: auto; background: var(--bg-secondary); border-radius: var(--border-radius); padding: 25px; box-shadow: var(--shadow); animation: fadeInUp 0.5s ease-out; } #overlay-close { position: absolute; top: 10px; right: 10px; background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; transition: color 0.2s ease; } #overlay-close:hover { color: var(--primary-hover); } .instructions .step { display: flex; margin-bottom: 20px; align-items: flex-start; } .step-number { width: 30px; height: 30px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; flex-shrink: 0; font-weight: 600; font-size: 14px; } .step-content h3 { font-size: 16px; margin-bottom: 5px; font-weight: 500; } .step-content p { color: var(--text-secondary); font-size: 14px; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } } @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } } @keyframes popIn { 0% { transform: scale(0); opacity: 0; } 70% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } } @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(10, 132, 255, 0.5); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(10, 132, 255, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(10, 132, 255, 0); } } @keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } } @media (max-width: 600px) { .status-content { width: 90%; } } </style>
+
+</head>
+<body>
+  <header>
+    <button id="info-button" aria-label="Anleitung anzeigen"><i class="fas fa-info-circle"></i></button>
+  </header>
+  <div id="status" class="loading">
+    <div class="status-content">
+      <div class="status-icon"><i class="fas fa-sync fa-spin"></i></div>
+      <div class="status-text">Überprüfe deine Umgebung...</div>
+      <div class="status-details">Bitte warten während wir dein Gerät prüfen</div>
+    </div>
+  </div>  <!-- Overlay für Anleitung -->  <div id="instruction-overlay">
+    <div class="overlay-content">
+      <button id="overlay-close" aria-label="Anleitung schließen"><i class="fas fa-times"></i></button>
+      <div class="instructions">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Kompatibilität prüfen</h3>
+            <p>Stelle sicher, dass du Chrome auf einem Android-Gerät verwendest.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>NFC aktivieren</h3>
+            <p>Aktiviere NFC in den Einstellungen deines Smartphones.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>Tag scannen</h3>
+            <p>Halte dein Gerät an ein NFC-Tag, um es zu lesen.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      document.body.style.opacity = '1';
+
+      const statusEl = document.getElementById('status');
+      const statusIcon = statusEl.querySelector('.status-icon');
+      const statusText = statusEl.querySelector('.status-text');
+      const statusDetails = statusEl.querySelector('.status-details');
+
+      function resetStatusClasses() {
+        statusEl.classList.remove('loading', 'success', 'error');
+      }
+
+      function updateStatus(type, text, details = '') {
+        resetStatusClasses();
+        setTimeout(() => {
+          statusEl.classList.add(type);
+          let iconClass = '';
+          switch(type) {
+            case 'loading': iconClass = 'fas fa-sync fa-spin'; break;
+            case 'success': iconClass = 'fas fa-check'; break;
+            case 'error': iconClass = 'fas fa-exclamation-triangle'; break;
+          }
+          statusIcon.innerHTML = `<i class="${iconClass}"></i>`;
+          statusText.textContent = text;
+          statusDetails.textContent = details;
+        }, 10);
+      }
+
+      function isAndroidChrome() {
+        const ua = navigator.userAgent;
+        return /Android/.test(ua) && /Chrome/.test(ua) && !/Edge|OPR|SamsungBrowser/.test(ua);
+      }
+
+      async function checkNFC() {
+        updateStatus('loading', 'Überprüfe deine Umgebung...', 'Bitte warten während wir dein Gerät prüfen');
+        await new Promise(resolve => setTimeout(resolve, 800));
+        if (!isAndroidChrome()) {
+          updateStatus('error', 'Inkompatibler Browser', 'Diese Seite funktioniert nur im Chrome Browser auf Android');
+          return;
+        }
+        if (!('NDEFReader' in window)) {
+          updateStatus('error', 'NFC nicht verfügbar', 'Dein Browser unterstützt die Web NFC API nicht');
+          return;
+        }
+        try {
+          const ndef = new NDEFReader();
+          await ndef.scan();
+          updateStatus('success', 'Bereit zum Scannen!', 'Halte dein Gerät an ein NFC-Tag');
+          ndef.onreadingerror = () => {
+            updateStatus('error', 'Lesefehler', 'Fehler beim Lesen des NFC-Tags. Bitte erneut versuchen.');
+            setTimeout(() => updateStatus('success', 'Bereit zum Scannen!', 'Halte dein Gerät an ein NFC-Tag'), 3000);
+          };
+          ndef.onreading = event => {
+            updateStatus('success', 'Tag erkannt!', 'NFC-Tag erfolgreich gelesen');
+            statusIcon.classList.add('popIn');
+            setTimeout(() => statusIcon.classList.remove('popIn'), 500);
+            console.log('NFC Daten:', event.message);
+            setTimeout(() => updateStatus('success', 'Bereit zum Scannen!', 'Halte dein Gerät an ein NFC-Tag'), 3000);
+          };
+        } catch (error) {
+          updateStatus('error', 'NFC nicht aktiviert', `Aktiviere NFC in deinen Geräteeinstellungen: ${error.message}`);
+        }
+      }
+
+      checkNFC();
+
+      const infoBtn = document.getElementById('info-button');
+      const overlay = document.getElementById('instruction-overlay');
+      const overlayClose = document.getElementById('overlay-close');
+      infoBtn.addEventListener('click', () => overlay.classList.add('active'));
+      overlayClose.addEventListener('click', () => overlay.classList.remove('active'));
+      overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('active'); });
+    });
+  </script></body>
+</html>
