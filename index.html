@@ -35,6 +35,12 @@
       transition: transform 0.4s ease;
       touch-action: none;
       z-index: 10;
+      /* Pull down nur erlaubt, wenn aktiviert */
+      pointer-events: none;
+    }
+
+    #status.pull-enabled {
+      pointer-events: auto;
     }
 
     .pull-handle {
@@ -109,6 +115,9 @@
       opacity: 0;
       transition: opacity 0.5s ease;
       pointer-events: none;
+      touch-action: none; /* verhindert Standard-Touch */
+      cursor: grab;
+      user-select: none;
     }
 
     .proceed-button {
@@ -156,7 +165,7 @@
     </div>
 
     <!-- Darunter -->
-    <div class="firebank-header">Proceed to FireBank</div>
+    <div class="firebank-header" id="firebankHeader">Proceed to FireBank</div>
     <button class="proceed-button" id="proceedBtn">Fortfahren</button>
   </div>
 
@@ -168,17 +177,22 @@
     const statusText = document.querySelector('.status-text');
     const statusIcon = document.querySelector('.status-icon i');
     const statusDetails = document.querySelector('.status-details');
+    const firebankHeader = document.getElementById('firebankHeader');
 
     let startY = 0;
     let currentY = 0;
     let isDragging = false;
     const maxPull = window.innerHeight * 0.6;
 
+    let nfcSuccess = false;
+
+    // Pull Down nur erlauben, wenn nfcSuccess == true
     function setTranslate(y) {
       status.style.transform = `translateY(${y}px)`;
     }
 
     function handleStart(e) {
+      if (!nfcSuccess) return; // Nur wenn NFC erfolgreich
       isDragging = true;
       startY = e.touches ? e.touches[0].clientY : e.clientY;
     }
@@ -193,6 +207,7 @@
     }
 
     function handleEnd() {
+      if (!isDragging) return;
       isDragging = false;
       const pulledDown = currentY - startY;
       if (pulledDown > maxPull * 0.3) {
@@ -248,6 +263,8 @@
           statusText.textContent = 'Tag erkannt!';
           statusIcon.className = 'fas fa-check-circle';
           statusDetails.textContent = 'NFC-Daten wurden gelesen.';
+          nfcSuccess = true;
+          status.classList.add('pull-enabled'); // Pull-Down aktivieren
         };
 
         ndef.onreadingerror = () => {
@@ -265,6 +282,54 @@
     proceedBtn.addEventListener('click', () => {
       window.location.href = 'https://firebank-eight.vercel.app';
     });
+
+    // Horizontales ziehen des "Proceed to FireBank" Textes nach links
+    let dragStartX = 0;
+    let dragCurrentX = 0;
+    let draggingHeader = false;
+
+    firebankHeader.addEventListener('pointerdown', (e) => {
+      if (!container.classList.contains('revealed')) return; // Nur wenn revealed
+      draggingHeader = true;
+      dragStartX = e.clientX;
+      firebankHeader.style.transition = 'none';
+      firebankHeader.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!draggingHeader) return;
+      dragCurrentX = e.clientX;
+      let deltaX = dragCurrentX - dragStartX;
+
+      // Nur nach links ziehen, also deltaX negativ
+      if (deltaX < 0) {
+        // Grenze links = -firebankHeader.offsetLeft (damit "anschlägt" links)
+        const maxLeft = -firebankHeader.offsetLeft;
+        if (deltaX < maxLeft) deltaX = maxLeft;
+
+        firebankHeader.style.transform = `translateX(calc(-50% + ${deltaX}px))`;
+      }
+    });
+
+    window.addEventListener('pointerup', (e) => {
+      if (!draggingHeader) return;
+      draggingHeader = false;
+      firebankHeader.style.transition = 'transform 0.3s ease';
+      const deltaX = dragCurrentX - dragStartX;
+
+      // Wenn ganz nach links gezogen (maxLeft)
+      const maxLeft = -firebankHeader.offsetLeft;
+      if (deltaX <= maxLeft) {
+        // Weiterleiten
+        window.location.href = 'https://firebank-eight.vercel.app';
+      } else {
+        // Zurück zur Mitte
+        firebankHeader.style.transform = 'translateX(-50%)';
+        firebankHeader.style.cursor = 'grab';
+      }
+    });
+
   </script>
 </body>
 </html>
