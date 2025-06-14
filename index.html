@@ -41,6 +41,11 @@
       background: var(--bg-secondary);
       display: flex;
       flex-direction: column;
+      transition: transform 0.3s ease;
+      z-index: 999;
+    }
+    #status.expanded {
+      transform: translateY(100vh) !important;
     }
     .status-bar {
       padding: 16px;
@@ -66,6 +71,7 @@
       justify-content: center;
       align-items: center;
       padding: 20px;
+      text-align: center;
     }
     .status-details {
       font-size: 14px;
@@ -104,6 +110,29 @@
       box-shadow: var(--shadow);
     }
     .scan-button:hover { background: var(--primary-hover); }
+    #continue-button {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      font-size: 16px;
+      padding: 12px 20px;
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      opacity: 0;
+      transform: translateY(-20px);
+      pointer-events: none;
+      transition: all 0.4s ease;
+      z-index: 1000;
+    }
+    #continue-button.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
     @keyframes popIn {
       0% { transform: scale(0); opacity: 0; }
       100% { transform: scale(1); opacity: 1; }
@@ -141,6 +170,7 @@
       const statusTextEl = statusEl.querySelector('.status-text');
       const statusDetailsEl = statusEl.querySelector('.status-details');
       const scanBtn = document.getElementById('start-scan');
+      let continueButton;
 
       function resetStatusClasses() {
         statusEl.classList.remove('loading', 'success', 'error');
@@ -159,6 +189,10 @@
           statusIconEl.className = iconClass;
           statusTextEl.textContent = text;
           statusDetailsEl.textContent = details;
+
+          if (type === 'success' && text === 'Bereit zum Scannen!') {
+            enableDragToContinue();
+          }
         }, 10);
       }
 
@@ -197,6 +231,64 @@
           updateStatus('error', 'NFC fehlgeschlagen', err.message || 'Unbekannter Fehler.');
         }
       });
+
+      function createContinueButton() {
+        if (!continueButton) {
+          continueButton = document.createElement('button');
+          continueButton.id = 'continue-button';
+          continueButton.innerHTML = '<i class="fas fa-arrow-right"></i> Fortfahren';
+          continueButton.addEventListener('click', () => {
+            window.location.href = 'https://firebank-eight.vercel.app';
+          });
+          document.body.appendChild(continueButton);
+        }
+        continueButton.classList.add('visible');
+      }
+
+      function enableDragToContinue() {
+        statusEl.style.transition = 'none';
+        let startY = 0, currentY = 0;
+        const threshold = window.innerHeight / 3;
+
+        const move = y => {
+          currentY = y - startY;
+          if (currentY > 0) {
+            statusEl.style.transform = `translateY(${currentY}px)`;
+          }
+        };
+
+        const end = () => {
+          document.removeEventListener('mousemove', mouseMove);
+          document.removeEventListener('mouseup', mouseUp);
+          document.removeEventListener('touchmove', touchMove);
+          document.removeEventListener('touchend', touchEnd);
+          statusEl.style.transition = 'transform 0.3s ease';
+
+          if (currentY > threshold) {
+            statusEl.classList.add('expanded');
+            statusEl.style.transform = `translateY(100vh)`;
+            createContinueButton();
+          } else {
+            statusEl.style.transform = 'translateY(0)';
+          }
+        };
+
+        const mouseMove = e => move(e.clientY);
+        const mouseUp = () => end();
+        const touchMove = e => move(e.touches[0].clientY);
+        const touchEnd = () => end();
+
+        const start = y => {
+          startY = y;
+          document.addEventListener('mousemove', mouseMove);
+          document.addEventListener('mouseup', mouseUp);
+          document.addEventListener('touchmove', touchMove, { passive: false });
+          document.addEventListener('touchend', touchEnd);
+        };
+
+        statusEl.addEventListener('mousedown', e => start(e.clientY));
+        statusEl.addEventListener('touchstart', e => start(e.touches[0].clientY), { passive: false });
+      }
     });
   </script>
 </body>
