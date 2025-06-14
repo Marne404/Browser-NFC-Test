@@ -1,190 +1,270 @@
-<!DOCTYPE html><html lang="de">
+<!DOCTYPE html>
+<html lang="de">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NFC FireBank</title>
+  <title>FireBank NFC</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    :root {
-      --fire-gradient: linear-gradient(90deg, #ff6a00, #ff0000);
+    * {
+      margin: 0; padding: 0;
+      box-sizing: border-box;
     }
-    body {
-      margin: 0;
+
+    html, body {
       font-family: 'Inter', sans-serif;
       background: #121212;
-      color: white;
+      color: #fff;
+      height: 100%;
       overflow: hidden;
     }
+
+    .container {
+      height: 100%;
+      position: relative;
+    }
+
     #status {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 100%;
       background: #1e1e1e;
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
+      border-bottom-left-radius: 24px;
+      border-bottom-right-radius: 24px;
       transition: transform 0.4s ease;
+      touch-action: none;
+      z-index: 10;
     }
-    #status.expanded {
-      transform: translateY(100vh);
+
+    .pull-handle {
+      width: 40px;
+      height: 6px;
+      background: #666;
+      border-radius: 3px;
+      margin: 12px auto;
     }
+
+    .status-bar {
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #292929;
+    }
+
     .status-icon {
-      font-size: 32px;
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: rgba(10, 132, 255, 0.2);
       color: #0a84ff;
-      animation: pulse 2s infinite;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+      margin-right: 12px;
     }
+
     .status-text {
-      margin-top: 16px;
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 600;
     }
+
+    .status-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px;
+      text-align: center;
+    }
+
     .status-details {
       color: #aaa;
-      margin-top: 8px;
+      margin-top: 10px;
+      font-size: 14px;
     }
+
     .scan-button {
-      margin-top: 24px;
-      padding: 12px 24px;
+      margin-top: 20px;
       background: #0a84ff;
-      border: none;
-      border-radius: 12px;
       color: white;
       font-size: 16px;
+      padding: 12px 24px;
+      border-radius: 16px;
+      border: none;
       cursor: pointer;
     }
-    #fire-text {
+
+    .firebank-header {
       position: absolute;
       top: 35%;
       left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 28px;
+      transform: translateX(-50%);
+      font-size: 2rem;
       font-weight: bold;
-      background: var(--fire-gradient);
-      background-clip: text;
+      background: linear-gradient(90deg, red, orange, red);
+      background-size: 200% auto;
       -webkit-background-clip: text;
-      color: transparent;
-      animation: fire-glow 2s infinite alternate;
+      -webkit-text-fill-color: transparent;
+      animation: firemove 5s linear infinite;
+      text-align: center;
       opacity: 0;
-      transition: opacity 0.8s ease;
+      transition: opacity 0.5s ease;
+      pointer-events: none;
     }
-    #proceedBtn {
+
+    .proceed-button {
       position: absolute;
-      bottom: 40px;
+      bottom: 30px;
       left: 50%;
       transform: translateX(-50%);
-      padding: 14px 28px;
-      font-size: 16px;
-      border: none;
-      border-radius: 20px;
       background: #0a84ff;
-      color: white;
+      color: #fff;
+      font-size: 18px;
+      padding: 14px 28px;
+      border: none;
+      border-radius: 16px;
       cursor: pointer;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
       opacity: 0;
-      transition: all 0.5s ease;
+      transition: opacity 0.5s ease;
+      pointer-events: none;
     }
-    #proceedBtn.visible, #fire-text.visible {
-      opacity: 1;
-    }@keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-}
-@keyframes fire-glow {
-  from { filter: drop-shadow(0 0 4px #ff4500); }
-  to { filter: drop-shadow(0 0 10px #ff0000); }
-}
 
+    .revealed .firebank-header,
+    .revealed .proceed-button {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    @keyframes firemove {
+      0% { background-position: 0% center; }
+      100% { background-position: 200% center; }
+    }
   </style>
 </head>
 <body>
-  <div id="status">
-    <div class="status-icon"><i class="fas fa-sync fa-spin"></i></div>
-    <div class="status-text">Bereit</div>
-    <div class="status-details">Drücke auf Scan starten, um NFC zu aktivieren.</div>
-    <button id="start-scan" class="scan-button">Scan starten</button>
-  </div>  <div id="fire-text">Proceed to FireBank</div>
-  <button id="proceedBtn">Fortfahren</button>  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const status = document.getElementById('status');
-      const scanBtn = document.getElementById('start-scan');
-      const proceedBtn = document.getElementById('proceedBtn');
-      const fireText = document.getElementById('fire-text');
+  <div class="container" id="container">
+    <div id="status">
+      <div class="pull-handle"></div>
+      <div class="status-bar">
+        <div class="status-icon"><i class="fas fa-sync fa-spin"></i></div>
+        <div class="status-text">Bereit</div>
+      </div>
+      <div class="status-content">
+        <div class="status-details">Ziehe nach unten, um fortzufahren.</div>
+        <button id="start-scan" class="scan-button">Scan starten</button>
+      </div>
+    </div>
 
-      let startY = 0, currentY = 0;
-      const threshold = window.innerHeight * 0.25;
+    <!-- Darunter -->
+    <div class="firebank-header">Proceed to FireBank</div>
+    <button class="proceed-button" id="proceedBtn">Fortfahren</button>
+  </div>
 
-      scanBtn.addEventListener('click', async () => {
-        if (!('NDEFReader' in window)) {
-          alert('Dein Browser unterstützt kein NFC.');
-          return;
-        }
+  <script>
+    const status = document.getElementById('status');
+    const container = document.getElementById('container');
+    const proceedBtn = document.getElementById('proceedBtn');
+    const startScanBtn = document.getElementById('start-scan');
+    const statusText = document.querySelector('.status-text');
+    const statusIcon = document.querySelector('.status-icon i');
+    const statusDetails = document.querySelector('.status-details');
 
-        try {
-          const ndef = new NDEFReader();
-          await ndef.scan();
+    let startY = 0;
+    let currentY = 0;
+    let isDragging = false;
+    const maxPull = window.innerHeight * 0.6;
 
-          ndef.onreading = () => {
-            console.log('NFC Tag erkannt');
-          };
+    function setTranslate(y) {
+      status.style.transform = `translateY(${y}px)`;
+    }
 
-          enablePullDown();
-        } catch (err) {
-          alert('NFC konnte nicht gestartet werden.');
-        }
-      });
+    function handleStart(e) {
+      isDragging = true;
+      startY = e.touches ? e.touches[0].clientY : e.clientY;
+    }
 
-      function enablePullDown() {
-        status.style.transition = 'none';
+    function handleMove(e) {
+      if (!isDragging) return;
+      currentY = e.touches ? e.touches[0].clientY : e.clientY;
+      let deltaY = currentY - startY;
+      if (deltaY > 0 && deltaY < maxPull) {
+        setTranslate(deltaY);
+      }
+    }
 
-        const move = y => {
-          currentY = y - startY;
-          if (currentY > 0) {
-            status.style.transform = `translateY(${currentY}px)`;
-          }
-        };
+    function handleEnd() {
+      isDragging = false;
+      const pulledDown = currentY - startY;
+      if (pulledDown > maxPull * 0.3) {
+        setTranslate(maxPull);
+        container.classList.add('revealed');
+      } else {
+        setTranslate(0);
+        container.classList.remove('revealed');
+      }
+    }
 
-        const end = () => {
-          document.removeEventListener('mousemove', mouseMove);
-          document.removeEventListener('mouseup', mouseUp);
-          document.removeEventListener('touchmove', touchMove);
-          document.removeEventListener('touchend', touchEnd);
+    status.addEventListener('touchstart', handleStart);
+    status.addEventListener('touchmove', handleMove);
+    status.addEventListener('touchend', handleEnd);
 
-          status.style.transition = 'transform 0.3s ease';
-          if (currentY > threshold) {
-            status.classList.add('expanded');
-            showContinue();
-          } else {
-            status.style.transform = 'translateY(0)';
-          }
-        };
+    status.addEventListener('mousedown', handleStart);
+    status.addEventListener('mousemove', handleMove);
+    status.addEventListener('mouseup', handleEnd);
 
-        const mouseMove = e => move(e.clientY);
-        const mouseUp = () => end();
-        const touchMove = e => move(e.touches[0].clientY);
-        const touchEnd = () => end();
+    // NFC Logik
+    function isAndroidChrome() {
+      const ua = navigator.userAgent;
+      return /Android/.test(ua) && /Chrome/.test(ua) && !/Edge|OPR|SamsungBrowser/.test(ua);
+    }
 
-        const start = y => {
-          startY = y;
-          document.addEventListener('mousemove', mouseMove);
-          document.addEventListener('mouseup', mouseUp);
-          document.addEventListener('touchmove', touchMove);
-          document.addEventListener('touchend', touchEnd);
-        };
+    startScanBtn.addEventListener('click', async () => {
+      statusText.textContent = 'Initialisiere NFC...';
+      statusIcon.className = 'fas fa-sync fa-spin';
+      statusDetails.textContent = 'Bitte warte';
 
-        status.addEventListener('mousedown', e => start(e.clientY));
-        status.addEventListener('touchstart', e => start(e.touches[0].clientY));
+      if (!isAndroidChrome()) {
+        statusText.textContent = 'Inkompatibler Browser';
+        statusIcon.className = 'fas fa-exclamation-triangle';
+        statusDetails.textContent = 'Nur Chrome auf Android unterstützt Web NFC.';
+        return;
       }
 
-      function showContinue() {
-        fireText.classList.add('visible');
-        proceedBtn.classList.add('visible');
+      if (!('NDEFReader' in window)) {
+        statusText.textContent = 'Nicht unterstützt';
+        statusIcon.className = 'fas fa-exclamation-triangle';
+        statusDetails.textContent = 'Web NFC wird nicht unterstützt.';
+        return;
       }
 
-      proceedBtn.addEventListener('click', () => {
-        window.location.href = 'https://firebank-eight.vercel.app';
-      });
+      try {
+        const ndef = new NDEFReader();
+        await ndef.scan();
+        statusText.textContent = 'Bereit zum Scannen!';
+        statusIcon.className = 'fas fa-check';
+        statusDetails.textContent = 'Halte dein Gerät an ein NFC-Tag.';
+
+        ndef.onreading = event => {
+          statusText.textContent = 'Tag erkannt!';
+          statusIcon.className = 'fas fa-check-circle';
+          statusDetails.textContent = 'NFC-Daten wurden gelesen.';
+        };
+
+        ndef.onreadingerror = () => {
+          statusText.textContent = 'Lesefehler';
+          statusIcon.className = 'fas fa-times-circle';
+          statusDetails.textContent = 'Fehler beim Lesen des Tags.';
+        };
+      } catch (err) {
+        statusText.textContent = 'NFC fehlgeschlagen';
+        statusIcon.className = 'fas fa-times-circle';
+        statusDetails.textContent = err.message || 'Unbekannter Fehler.';
+      }
     });
-  </script></body>
+
+    proceedBtn.addEventListener('click', () => {
+      window.location.href = 'https://firebank-eight.vercel.app';
+    });
+  </script>
+</body>
 </html>
