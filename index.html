@@ -27,12 +27,12 @@
       font-family: 'Inter', sans-serif;
       background: var(--bg-primary);
       color: var(--text-primary);
-      min-height: 100vh;
+      min-height: 200vh; /* für Scrollbarkeit */
       display: flex;
       flex-direction: column;
-      overflow: hidden;
       opacity: 0;
       transition: opacity 0.5s ease;
+      overflow-x: hidden;
     }
     #status {
       position: fixed;
@@ -41,11 +41,7 @@
       background: var(--bg-secondary);
       display: flex;
       flex-direction: column;
-      transition: transform 0.3s ease;
-      z-index: 999;
-    }
-    #status.expanded {
-      transform: translateY(100vh) !important;
+      z-index: 10;
     }
     .status-bar {
       padding: 16px;
@@ -71,7 +67,6 @@
       justify-content: center;
       align-items: center;
       padding: 20px;
-      text-align: center;
     }
     .status-details {
       font-size: 14px;
@@ -110,29 +105,52 @@
       box-shadow: var(--shadow);
     }
     .scan-button:hover { background: var(--primary-hover); }
-    #continue-button {
+
+    /* FireBank Header */
+    .firebank-header {
+      position: absolute;
+      top: 35%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 2rem;
+      font-weight: bold;
+      background: linear-gradient(90deg, red, orange, red);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: firemove 5s linear infinite;
+      text-align: center;
+      z-index: 5;
+    }
+
+    @keyframes firemove {
+      0% { background-position: 0% center; }
+      100% { background-position: 200% center; }
+    }
+
+    /* Proceed Button */
+    .proceed-button {
       position: fixed;
-      top: 20px;
-      right: 20px;
-      background: var(--primary);
-      color: white;
-      border: none;
-      font-size: 16px;
-      padding: 12px 20px;
-      border-radius: var(--border-radius);
-      box-shadow: var(--shadow);
-      cursor: pointer;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(30px);
       opacity: 0;
-      transform: translateY(-20px);
-      pointer-events: none;
-      transition: all 0.4s ease;
-      z-index: 1000;
+      padding: 14px 28px;
+      font-size: 18px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: all 0.6s ease;
+      z-index: 100;
     }
-    #continue-button.visible {
+    .proceed-button.visible {
       opacity: 1;
-      transform: translateY(0);
-      pointer-events: auto;
+      transform: translateX(-50%) translateY(0);
     }
+
     @keyframes popIn {
       0% { transform: scale(0); opacity: 0; }
       100% { transform: scale(1); opacity: 1; }
@@ -161,6 +179,9 @@
     </div>
   </div>
 
+  <div class="firebank-header">Proceed to FireBank</div>
+  <button class="proceed-button" id="proceedBtn">Fortfahren</button>
+
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       document.body.style.opacity = '1';
@@ -170,7 +191,6 @@
       const statusTextEl = statusEl.querySelector('.status-text');
       const statusDetailsEl = statusEl.querySelector('.status-details');
       const scanBtn = document.getElementById('start-scan');
-      let continueButton;
 
       function resetStatusClasses() {
         statusEl.classList.remove('loading', 'success', 'error');
@@ -189,10 +209,6 @@
           statusIconEl.className = iconClass;
           statusTextEl.textContent = text;
           statusDetailsEl.textContent = details;
-
-          if (type === 'success' && text === 'Bereit zum Scannen!') {
-            enableDragToContinue();
-          }
         }, 10);
       }
 
@@ -232,63 +248,17 @@
         }
       });
 
-      function createContinueButton() {
-        if (!continueButton) {
-          continueButton = document.createElement('button');
-          continueButton.id = 'continue-button';
-          continueButton.innerHTML = '<i class="fas fa-arrow-right"></i> Fortfahren';
-          continueButton.addEventListener('click', () => {
-            window.location.href = 'https://firebank-eight.vercel.app';
-          });
-          document.body.appendChild(continueButton);
-        }
-        continueButton.classList.add('visible');
-      }
-
-      function enableDragToContinue() {
-        statusEl.style.transition = 'none';
-        let startY = 0, currentY = 0;
-        const threshold = window.innerHeight / 3;
-
-        const move = y => {
-          currentY = y - startY;
-          if (currentY > 0) {
-            statusEl.style.transform = `translateY(${currentY}px)`;
+      // Scroll-Erkennung für Proceed Button
+      const proceedBtn = document.getElementById('proceedBtn');
+      const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            proceedBtn.classList.add('visible');
           }
-        };
+        });
+      }, { threshold: 0.5 });
 
-        const end = () => {
-          document.removeEventListener('mousemove', mouseMove);
-          document.removeEventListener('mouseup', mouseUp);
-          document.removeEventListener('touchmove', touchMove);
-          document.removeEventListener('touchend', touchEnd);
-          statusEl.style.transition = 'transform 0.3s ease';
-
-          if (currentY > threshold) {
-            statusEl.classList.add('expanded');
-            statusEl.style.transform = `translateY(100vh)`;
-            createContinueButton();
-          } else {
-            statusEl.style.transform = 'translateY(0)';
-          }
-        };
-
-        const mouseMove = e => move(e.clientY);
-        const mouseUp = () => end();
-        const touchMove = e => move(e.touches[0].clientY);
-        const touchEnd = () => end();
-
-        const start = y => {
-          startY = y;
-          document.addEventListener('mousemove', mouseMove);
-          document.addEventListener('mouseup', mouseUp);
-          document.addEventListener('touchmove', touchMove, { passive: false });
-          document.addEventListener('touchend', touchEnd);
-        };
-
-        statusEl.addEventListener('mousedown', e => start(e.clientY));
-        statusEl.addEventListener('touchstart', e => start(e.touches[0].clientY), { passive: false });
-      }
+      observer.observe(proceedBtn);
     });
   </script>
 </body>
