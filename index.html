@@ -29,13 +29,13 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
 
 /* Obere Status-Leiste */ .status-bar { width: 100%; padding: 16px; display: flex; align-items: center; justify-content: center; background: rgba(37,37,37,0.8); box-shadow: 0 2px 10px rgba(0,0,0,0.5); z-index: 1; } .status-icon { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 12px; font-size: 24px; transition: transform 0.3s ease; } .status-text { font-size: 18px; font-weight: 600; text-align: center; }
 
-/* Inhalt unterhalb der Status-Bar, hier leer oder für zukünftiges */ .status-content { flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; } .status-details { font-size: 14px; color: var(--text-secondary); text-align: center; margin-top: 8px; max-width: 90%; animation: fadeIn 0.5s ease-out; }
+/* Inhalt unterhalb der Status-Bar */ .status-content { flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; } .status-details { font-size: 14px; color: var(--text-secondary); text-align: center; margin-top: 8px; max-width: 90%; animation: fadeIn 0.5s ease-out; }
 
 /* Status-Klassen */ #status.loading .status-icon { background: rgba(10, 132, 255, 0.2); color: var(--primary); animation: pulse 2s infinite; } #status.success .status-icon { background: var(--success-gradient); color: white; box-shadow: 0 5px 20px rgba(48, 209, 88, 0.3); animation: popIn 0.5s ease-out; } #status.error .status-icon { background: var(--error-gradient); color: white; box-shadow: 0 5px 20px rgba(255, 55, 95, 0.3); animation: shake 0.5s ease-out; }
 
 /* Overlay für Anleitung */ #instruction-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(18, 18, 18, 0.95); display: flex; justify-content: center; align-items: center; padding: 20px; z-index: 1000; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; } #instruction-overlay.active { opacity: 1; visibility: visible; } .overlay-content { position: relative; max-width: 500px; width: 100%; max-height: 90%; overflow-y: auto; background: var(--bg-secondary); border-radius: var(--border-radius); padding: 25px; box-shadow: var(--shadow); animation: fadeInUp 0.5s ease-out; } #overlay-close { position: absolute; top: 10px; right: 10px; background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; transition: color 0.2s ease; } #overlay-close:hover { color: var(--primary-hover); } .instructions .step { display: flex; margin-bottom: 20px; align-items: flex-start; } .step-number { width: 30px; height: 30px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; flex-shrink: 0; font-weight: 600; font-size: 14px; } .step-content h3 { font-size: 16px; margin-bottom: 5px; font-weight: 500; } .step-content p { color: var(--text-secondary); font-size: 14px; }
 
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } } @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } } @keyframes popIn { 0% { transform: scale(0); opacity: 0; } 70% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } } @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(10, 132, 255, 0.5); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(10, 132, 255, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(10, 132, 255, 0); } } @keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } } @media (max-width: 600px) { .status-bar { padding: 12px; } .status-icon { width: 40px; height: 40px; font-size: 20px; margin-right: 8px; } .status-text { font-size: 16px; } .status-details { font-size: 13px; max-width: 95%; } .overlay-content { padding: 20px; } } </style>
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } } @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } } @keyframes popIn { 0% { transform: scale(0); opacity: 0; } 70% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } } @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(10, 132, 255, 0.5); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(10, 132, 255, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(10, 132, 255, 0); } } @keyframes shake { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-5px); } 40%,80% { transform: translateX(5px); } } @media (max-width: 600px) { .status-bar { padding: 12px; } .status-icon { width: 40px; height: 40px; font-size: 20px; margin-right: 8px; } .status-text { font-size: 16px; } .status-details { font-size: 13px; max-width: 95%; } .overlay-content { padding: 20px; } } </style>
 
 </head>
 <body>
@@ -94,7 +94,6 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
         resetStatusClasses();
         setTimeout(() => {
           statusEl.classList.add(type);
-          // Icon
           let iconClass = '';
           switch(type) {
             case 'loading': iconClass = 'fas fa-sync fa-spin'; break;
@@ -112,6 +111,18 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
         return /Android/.test(ua) && /Chrome/.test(ua) && !/Edge|OPR|SamsungBrowser/.test(ua);
       }
 
+      async function requestNfcPermission() {
+        try {
+          if (!navigator.permissions) return true;
+          const permissionStatus = await navigator.permissions.query({ name: 'nfc' });
+          if (permissionStatus.state === 'granted') return true;
+          if (permissionStatus.state === 'prompt') return true;
+          return false;
+        } catch {
+          return true;
+        }
+      }
+
       async function checkNFC() {
         updateStatus('loading', 'Überprüfe deine Umgebung...', 'Bitte warten während wir dein Gerät prüfen');
         await new Promise(resolve => setTimeout(resolve, 800));
@@ -121,6 +132,11 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
         }
         if (!('NDEFReader' in window)) {
           updateStatus('error', 'NFC nicht verfügbar', 'Dein Browser unterstützt die Web NFC API nicht.');
+          return;
+        }
+        const hasPerm = await requestNfcPermission();
+        if (!hasPerm) {
+          updateStatus('error', 'NFC Berechtigung verweigert', 'Bitte erlaube den Zugriff auf NFC in den Geräteeinstellungen.');
           return;
         }
         try {
@@ -133,7 +149,6 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
           };
           ndef.onreading = event => {
             updateStatus('success', 'Tag erkannt!', 'NFC-Tag erfolgreich gelesen');
-            // kurze Animation
             const icon = statusEl.querySelector('.status-icon');
             icon.style.transform = 'scale(1.2)';
             setTimeout(() => icon.style.transform = '', 300);
