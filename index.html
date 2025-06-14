@@ -115,7 +115,7 @@
       opacity: 0;
       transition: opacity 0.5s ease;
       pointer-events: none;
-      touch-action: none; /* verhindert Standard-Touch */
+      touch-action: none;
       cursor: grab;
       user-select: none;
     }
@@ -186,7 +186,6 @@
 
     let nfcSuccess = false;
 
-    // Pull Down nur erlauben, wenn nfcSuccess == true
     function setTranslate(y) {
       status.style.transform = `translateY(${y}px)`;
     }
@@ -227,7 +226,7 @@
     status.addEventListener('mousemove', handleMove);
     status.addEventListener('mouseup', handleEnd);
 
-    // NFC Logik
+    // NFC Scan Funktionalität
     function isAndroidChrome() {
       const ua = navigator.userAgent;
       return /Android/.test(ua) && /Chrome/.test(ua) && !/Edge|OPR|SamsungBrowser/.test(ua);
@@ -279,11 +278,12 @@
       }
     });
 
+    // Klick auf Fortfahren-Button leitet weiter
     proceedBtn.addEventListener('click', () => {
       window.location.href = 'https://firebank-eight.vercel.app';
     });
 
-    // Horizontales ziehen des "Proceed to FireBank" Textes nach links
+    // "Proceed to FireBank" Text horizontal nach links ziehen
     let dragStartX = 0;
     let dragCurrentX = 0;
     let draggingHeader = false;
@@ -302,34 +302,7 @@
       dragCurrentX = e.clientX;
       let deltaX = dragCurrentX - dragStartX;
 
-      // Nur nach links ziehen, also deltaX negativ
+      // Nur nach links ziehen (deltaX negativ)
       if (deltaX < 0) {
-        // Grenze links = -firebankHeader.offsetLeft (damit "anschlägt" links)
         const maxLeft = -firebankHeader.offsetLeft;
-        if (deltaX < maxLeft) deltaX = maxLeft;
-
-        firebankHeader.style.transform = `translateX(calc(-50% + ${deltaX}px))`;
-      }
-    });
-
-    window.addEventListener('pointerup', (e) => {
-      if (!draggingHeader) return;
-      draggingHeader = false;
-      firebankHeader.style.transition = 'transform 0.3s ease';
-      const deltaX = dragCurrentX - dragStartX;
-
-      // Wenn ganz nach links gezogen (maxLeft)
-      const maxLeft = -firebankHeader.offsetLeft;
-      if (deltaX <= maxLeft) {
-        // Weiterleiten
-        window.location.href = 'https://firebank-eight.vercel.app';
-      } else {
-        // Zurück zur Mitte
-        firebankHeader.style.transform = 'translateX(-50%)';
-        firebankHeader.style.cursor = 'grab';
-      }
-    });
-
-  </script>
-</body>
-</html>
+        if (deltaX < maxLeft) deltaX = maxLeft
