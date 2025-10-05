@@ -2,20 +2,19 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>NFC → Firebase</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>NFC → Firebase einmalig</title>
 </head>
 <body>
-<h1>NFC Scan → Firebase Firestore</h1>
+<h1>NFC Scan → Firebase einmalig</h1>
 <button id="btnStart">NFC Berechtigung & Scan starten</button>
 <div id="log">Noch kein Scan gestartet.</div>
 
-<!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
-// Firebase Konfiguration
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyBLrWiJBiG419ZsQjZsiu77vED7cdEvETA",
   authDomain: "firebank-dc210.firebaseapp.com",
@@ -25,65 +24,77 @@ const firebaseConfig = {
   appId: "1:560163754433:web:a0f46e347b0d7a9cd79f40",
   measurementId: "G-KQ3MGHY2MS"
 };
-
-// Firebase App initialisieren
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 const btnStart = document.getElementById("btnStart");
 const logEl = document.getElementById("log");
 
+let ndef = null;
+let writtenDocId = null;
+
 function log(msg){
   console.log(msg);
   logEl.textContent = msg;
 }
 
-btnStart.addEventListener('click', async () => {
+btnStart.addEventListener("click", async () => {
   if (!("NDEFReader" in window)) {
-    log("Web NFC wird von diesem Browser nicht unterstützt.");
+    log("Web NFC nicht unterstützt");
     return;
   }
 
+  ndef = new NDEFReader();
   try {
-    const ndef = new NDEFReader();
-    await ndef.scan(); // Permission-Popup
-    log("Scanning gestartet. Halte den Tag ans Gerät...");
+    await ndef.scan(); // Permission
+    log("Scanning gestartet. Halte Tag ans Gerät.");
 
-    ndef.onreadingerror = () => log("Fehler beim Lesen des Tags.");
     ndef.onreading = async (event) => {
-      log("Tag gelesen!");
+      log("Tag gelesen");
       let text = "";
-
-      for (const record of event.message.records){
-        if (record.recordType === "text"){
-          if (record.data instanceof ArrayBuffer){
-            text = new TextDecoder().decode(record.data);
-          } else if (record.data instanceof DataView){
-            text = new TextDecoder().decode(record.data.buffer);
+      for (const rec of event.message.records){
+        if (rec.recordType === "text"){
+          if (rec.data instanceof ArrayBuffer){
+            text = new TextDecoder().decode(rec.data);
+          } else if (rec.data instanceof DataView){
+            text = new TextDecoder().decode(rec.data.buffer);
           } else {
-            text = String(record.data);
+            text = String(rec.data);
           }
         }
       }
-
       log(`Payload: ${text}`);
 
-      // In Firebase Firestore speichern
-      try {
-        const docRef = await addDoc(collection(db, "nfc_scans"), {
-          text: text,
-          timestamp: serverTimestamp()
-        });
-        log(`Erfolgreich gespeichert! DocID: ${docRef.id}`);
-      } catch (err) {
-        log("Fehler beim Speichern in Firestore: " + err);
-        console.error(err);
+      // Schreib nur einmal, wenn noch kein Doc existiert
+      if (!writtenDocId){
+        try {
+          const docRef = await addDoc(collection(db, "nfc_scans"), {
+            text: text,
+            timestamp: serverTimestamp()
+          });
+          writtenDocId = docRef.id;
+          log(`Erfolgreich einmalig gespeichert! DocID: ${docRef.id}`);
+        } catch(e){
+          log("Fehler beim Schreiben: " + e);
+        }
       }
     };
 
-  } catch (err) {
-    log("Fehler beim Starten des NFC-Scans: " + err);
-    console.error(err);
+    ndef.onreadingerror = async () => {
+      log("Tag entfernt oder Fehler beim Lesen.");
+      if (writtenDocId){
+        try {
+          await deleteDoc(doc(db, "nfc_scans", writtenDocId));
+          log("Eintrag gelöscht, Tag weggenommen.");
+          writtenDocId = null;
+        } catch(e){
+          log("Fehler beim Löschen: " + e);
+        }
+      }
+    };
+
+  } catch(e){
+    log("Fehler beim Starten des Scans: " + e);
   }
 });
 </script>
