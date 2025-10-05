@@ -1,299 +1,91 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>NFC Reader / Coins Manager</title>
-<style>
-    body { font-family: system-ui, Arial; padding: 18px; max-width:720px; margin:auto; }
-    h1 { margin-top: 6px; }
-    .card { border:1px solid #ddd; padding:12px; border-radius:8px; margin-top:12px; }
-    label { display:block; margin-top:8px; }
-    button { margin-top:8px; padding:8px 12px; }
-    #log { white-space:pre-wrap; margin-top:10px; color:#333; font-size:0.95rem; }
-</style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NFC → Firebase</title>
 </head>
 <body>
-<h1>NFC JSON / Pseudo-JSON Reader (Name + Coins)</h1>
+<h1>NFC Scan → Firebase Firestore</h1>
+<button id="btnStart">NFC Berechtigung & Scan starten</button>
+<div id="log">Noch kein Scan gestartet.</div>
 
-<div class="card">
-  <div>
-    <button id="btnStart">NFC Berechtigung anfragen & Scan starten</button>
-    <button id="btnStop" disabled>Stop</button>
-  </div>
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
-  <label>
-    Ausgabeformat (wenn die App etwas neu schreibt):
-    <select id="formatSelect">
-      <option value="json">Standard JSON (z. B. {"name":"marne","coins":0})</option>
-      <option value="nq">{name:marne,coins:0} — ohne Anführungszeichen (Pseudo‑Format)</option>
-    </select>
-  </label>
+// Firebase Konfiguration
+const firebaseConfig = {
+  apiKey: "AIzaSyBLrWiJBiG419ZsQjZsiu77vED7cdEvETA",
+  authDomain: "firebank-dc210.firebaseapp.com",
+  projectId: "firebank-dc210",
+  storageBucket: "firebank-dc210.firebasestorage.app",
+  messagingSenderId: "560163754433",
+  appId: "1:560163754433:web:a0f46e347b0d7a9cd79f40",
+  measurementId: "G-KQ3MGHY2MS"
+};
 
-  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;">
-    <div class="card" style="flex:1;min-width:220px;">
-      <strong>Tag-Daten:</strong>
-      <div>Name: <span id="name">—</span></div>
-      <div>Coins: <span id="coins">—</span></div>
-      <div style="margin-top:8px;">
-        <button id="btnInc" disabled>+1 Coin</button>
-        <button id="btnWrite" disabled>Auf Tag schreiben</button>
-      </div>
-    </div>
+// Firebase App initialisieren
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-    <div class="card" style="flex:1;min-width:220px;">
-      <strong>Log / Hinweise</strong>
-      <div id="log">Noch kein Scan gestartet.</div>
-    </div>
-  </div>
-</div>
+const btnStart = document.getElementById("btnStart");
+const logEl = document.getElementById("log");
 
-<script>
-const btnStart = document.getElementById('btnStart');
-const btnStop  = document.getElementById('btnStop');
-const btnInc   = document.getElementById('btnInc');
-const btnWrite = document.getElementById('btnWrite');
-const fmtSel   = document.getElementById('formatSelect');
-
-const nameEl = document.getElementById('name');
-const coinsEl = document.getElementById('coins');
-const logEl = document.getElementById('log');
-
-let ndef = null;
-let scanning = false;
-let lastTagMessage = null;
-let currentData = { name: null, coins: null };
-let lastRecordRaw = null;
-
-function log(...args){
-  logEl.textContent = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
-  console.log(...args);
-}
-
-function parsePayloadText(text){
-  // 1) Try strict JSON parse
-  try {
-    const obj = JSON.parse(text);
-    if (obj && typeof obj === 'object') return obj;
-  } catch(e){ /* ignore */ }
-
-  // 2) Try pseudo-json: {name:marne,coins:0} or name:marne,coins:0
-  // Accept also `name:marne` or `name=marne;coins=0` variations
-  try {
-    let s = text.trim();
-    // remove surrounding braces
-    if (s.startsWith('{') && s.endsWith('}')) s = s.slice(1,-1).trim();
-    // split by comma or semicolon
-    const parts = s.split(/\s*[,;]\s*/);
-    const out = {};
-    for (const p of parts){
-      if (!p) continue;
-      // allow key:value or key=value or key value
-      let m = p.match(/^([^:=\s]+)\s*[:=]\s*(.+)$/);
-      if (!m) {
-        // fallback: split on first whitespace
-        const idx = p.indexOf(' ');
-        if (idx > 0) m = [p, p.slice(0, idx), p.slice(idx+1)];
-      }
-      if (!m) continue;
-      let k = m[1].trim();
-      let v = m[2].trim();
-      // strip quotes if present
-      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
-        v = v.slice(1,-1);
-      }
-      // try to parse numbers
-      if (/^-?\d+$/.test(v)) v = parseInt(v,10);
-      else if (/^-?\d+\.\d+$/.test(v)) v = parseFloat(v);
-      out[k] = v;
-    }
-    if (Object.keys(out).length) return out;
-  } catch(e){ /* ignore */ }
-
-  // nothing parsed
-  return null;
-}
-
-function buildPayload(obj, format){
-  if (format === 'json') {
-    return JSON.stringify(obj);
-  } else {
-    // build pseudo format without quotes: {name:marne,coins:0}
-    const parts = [];
-    for (const k of Object.keys(obj)){
-      parts.push(`${k}:${obj[k]}`);
-    }
-    return `{${parts.join(',')}}`;
-  }
-}
-
-async function writePayloadToTag(payloadText){
-  if (!ndef) {
-    log('Kein NDEF-Objekt vorhanden. Schreibvorgang benötigt eine Nutzer-Interaktion.');
-    throw new Error('no ndef');
-  }
-  try {
-    // In vielen Browsern muss write() in Kontext einer user gesture geschehen.
-    await ndef.write({ records: [{ recordType: "text", data: payloadText }] });
-    log('Erfolgreich geschrieben:', payloadText);
-    return true;
-  } catch (err) {
-    log('Fehler beim Schreiben auf Tag:', err);
-    throw err;
-  }
-}
-
-async function handleNfcEvent(e){
-  log('Tag gelesen (event).');
-  if (!e.message || !e.message.records) {
-    log('Keine NDEF-Records gefunden.');
-    return;
-  }
-  // try to get first text record
-  for (const rec of e.message.records){
-    lastRecordRaw = rec;
-    try {
-      if (rec.recordType === "text" || rec.mediaType === "text/plain" || rec.recordType === "") {
-        // rec.data is a DataView in some implementations
-        let text = '';
-        if (rec.data instanceof ArrayBuffer) {
-          text = new TextDecoder().decode(rec.data);
-        } else if (rec.data instanceof DataView) {
-          text = new TextDecoder().decode(rec.data.buffer);
-        } else if (rec.data) {
-          // fallback for implementations exposing .data as string
-          text = String(rec.data);
-        } else {
-          // some implementations expose .payload for text records (older)
-          if (rec.payload) text = new TextDecoder().decode(rec.payload);
-        }
-        if (!text) continue;
-        log('Roh-Payload:', text);
-        const parsed = parsePayloadText(text);
-        lastTagMessage = text;
-        if (parsed) {
-          currentData = { name: parsed.name ?? null, coins: parsed.coins ?? null };
-        } else {
-          currentData = { name: null, coins: null };
-        }
-        updateUI();
-
-        // If coins missing -> create coins=0 and write back automatically (best effort)
-        if (currentData.coins === null) {
-          log('coins-Feld fehlt — füge coins:0 hinzu (versuche zu schreiben).');
-          // preserve name if present
-          if (!currentData.name && parsed && parsed.name) currentData.name = parsed.name;
-          const newObj = { name: currentData.name ?? '', coins: 0 };
-          const payloadText = buildPayload(newObj, fmtSel.value);
-          // attempt write directly; some browsers require user gesture and will reject.
-          try {
-            await writePayloadToTag(payloadText);
-            currentData.coins = 0;
-            updateUI();
-          } catch (err) {
-            log('Automatisches Schreiben fehlgeschlagen. Bitte drücke "Auf Tag schreiben" (Benutzeraktion).');
-            // enable write button for manual attempt
-            btnWrite.disabled = false;
-          }
-        } else {
-          // coins exist — enable increment & explicit write
-          btnInc.disabled = false;
-          btnWrite.disabled = false;
-        }
-        return;
-      } else {
-        log('Nicht-Text-Record übersprungen, recordType=', rec.recordType);
-      }
-    } catch(err) {
-      console.error(err);
-    }
-  }
-  log('Keinen passenden Text-Record gefunden.');
-}
-
-function updateUI(){
-  nameEl.textContent = currentData.name ?? '—';
-  coinsEl.textContent = (currentData.coins === null) ? '—' : String(currentData.coins);
-  if (currentData.coins !== null) {
-    btnInc.disabled = false;
-    btnWrite.disabled = false;
-  } else {
-    btnInc.disabled = true;
-    // write may be used to create coins=0
-    btnWrite.disabled = false;
-  }
+function log(msg){
+  console.log(msg);
+  logEl.textContent = msg;
 }
 
 btnStart.addEventListener('click', async () => {
-  if (!('NDEFReader' in window)) {
-    log('Web NFC wird von diesem Browser nicht unterstützt.');
+  if (!("NDEFReader" in window)) {
+    log("Web NFC wird von diesem Browser nicht unterstützt.");
     return;
   }
+
   try {
-    ndef = new NDEFReader();
-    await ndef.scan();         // <-- Erzeugt Permission-Prompt
-    scanning = true;
-    btnStart.disabled = true;
-    btnStop.disabled = false;
-    log('Scanning gestartet — halte den Tag an das Gerät.');
-    // event handlers
-    ndef.onreadingerror = () => log('Lese-Fehler.');
+    const ndef = new NDEFReader();
+    await ndef.scan(); // Permission-Popup
+    log("Scanning gestartet. Halte den Tag ans Gerät...");
+
+    ndef.onreadingerror = () => log("Fehler beim Lesen des Tags.");
     ndef.onreading = async (event) => {
+      log("Tag gelesen!");
+      let text = "";
+
+      for (const record of event.message.records){
+        if (record.recordType === "text"){
+          if (record.data instanceof ArrayBuffer){
+            text = new TextDecoder().decode(record.data);
+          } else if (record.data instanceof DataView){
+            text = new TextDecoder().decode(record.data.buffer);
+          } else {
+            text = String(record.data);
+          }
+        }
+      }
+
+      log(`Payload: ${text}`);
+
+      // In Firebase Firestore speichern
       try {
-        await handleNfcEvent(event);
-      } catch (e) {
-        console.error(e);
+        const docRef = await addDoc(collection(db, "nfc_scans"), {
+          text: text,
+          timestamp: serverTimestamp()
+        });
+        log(`Erfolgreich gespeichert! DocID: ${docRef.id}`);
+      } catch (err) {
+        log("Fehler beim Speichern in Firestore: " + err);
+        console.error(err);
       }
     };
+
   } catch (err) {
-    log('Fehler beim Starten des Scans:', err);
+    log("Fehler beim Starten des NFC-Scans: " + err);
+    console.error(err);
   }
 });
-
-btnStop.addEventListener('click', () => {
-  // Es gibt keine offizielle .stop() in allen Implementationen; wir "entfernen" Handler
-  if (ndef) {
-    ndef.onreading = null;
-    ndef.onreadingerror = null;
-    ndef = null;
-  }
-  scanning = false;
-  btnStart.disabled = false;
-  btnStop.disabled = true;
-  log('Scan gestoppt.');
-});
-
-btnInc.addEventListener('click', async () => {
-  if (currentData.coins === null) currentData.coins = 0;
-  currentData.coins = Number(currentData.coins) + 1;
-  updateUI();
-  // try to write immediately, but this must be in a user gesture -> OK here
-  const payloadText = buildPayload(currentData, fmtSel.value);
-  try {
-    await writePayloadToTag(payloadText);
-    log('Coin erhöht & gespeichert:', currentData.coins);
-  } catch (e) {
-    log('Speichern fehlgeschlagen:', e);
-  }
-});
-
-btnWrite.addEventListener('click', async () => {
-  // Write currentData to tag (user gesture)
-  const newObj = { name: currentData.name ?? '', coins: (currentData.coins === null ? 0 : currentData.coins) };
-  const payloadText = buildPayload(newObj, fmtSel.value);
-  try {
-    await writePayloadToTag(payloadText);
-    log('Manuelles Schreiben erfolgreich.');
-    currentData = newObj;
-    updateUI();
-  } catch (e) {
-    log('Manuelles Schreiben fehlgeschlagen:', e);
-  }
-});
-
-// Optional: try to parse a sample payload on load
-log('Bereit. Drücke "NFC Berechtigung anfragen & Scan starten".');
-
 </script>
 </body>
 </html>
